@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     # Clients support sessions
     keystone = v3.Client(session=sess)
-    quantum = client.Client(session=sess)
+    neutron = client.Client(session=sess)
 
     # Resolve tenant id
     project_id = auth.get_project_id(sess)
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Create network
-    networks = quantum.list_networks(name=net_name)
+    networks = neutron.list_networks(name=net_name)
     if len(networks['networks']) == 0:
         logging.info('Creating tenant network: %s', net_name)
         network_msg = {
@@ -98,13 +98,13 @@ if __name__ == '__main__':
         else:
             network_msg['network']['provider:segmentation_id'] = 5
 
-        network = quantum.create_network(network_msg)['network']
+        network = neutron.create_network(network_msg)['network']
     else:
         logging.warning('Network %s already exists.', net_name)
         network = networks['networks'][0]
 
     # Create subnet
-    subnets = quantum.list_subnets(name=subnet_name)
+    subnets = neutron.list_subnets(name=subnet_name)
     if len(subnets['subnets']) == 0:
         logging.info('Creating subnet for %s',
                      net_name)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
                 'tenant_id': project_id
             }
         }
-        subnet = quantum.create_subnet(subnet_msg)['subnet']
+        subnet = neutron.create_subnet(subnet_msg)['subnet']
     else:
         logging.warning('Subnet %s already exists.', subnet_name)
         subnet = subnets['subnets'][0]
@@ -133,23 +133,24 @@ if __name__ == '__main__':
         logging.info('Updating dns_nameservers (%s) for subnet %s',
                      opts.dns_servers,
                      subnet_name)
-        quantum.update_subnet(subnet['id'], msg)
+        neutron.update_subnet(subnet['id'], msg)
 
     # Plug subnet into router if provided
     if opts.router:
-        routers = quantum.list_routers(name=opts.router)
+        routers = neutron.list_routers(name=opts.router)
         if len(routers['routers']) == 0:
             logging.error('Unable to locate provider router %s', opts.router)
             sys.exit(1)
         else:
             # Check to see if subnet already plugged into router
-            ports = quantum.list_ports(device_owner='network:router_interface',
+            router = routers['routers'][0]
+            ports = neutron.list_ports(device_id=router['id'],
                                        network_id=network['id'])
             if len(ports['ports']) == 0:
                 logging.info('Adding interface from %s to %s',
                              opts.router, subnet_name)
                 router = routers['routers'][0]
-                quantum.add_interface_router(router['id'],
+                neutron.add_interface_router(router['id'],
                                              {'subnet_id': subnet['id']})
             else:
                 logging.warning('Router already connected to subnet')

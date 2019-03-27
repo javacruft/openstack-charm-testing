@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -ex
+
+export CIDR_EXT="10.6.24.0/22"
+export GATEWAY="10.6.24.1"
+export FIP_RANGE="10.6.24.100:10.6.25.255"
+export NAMESERVER="10.6.24.1"
+
+. ./profiles/amd64-v3
